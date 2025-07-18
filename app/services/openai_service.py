@@ -32,18 +32,18 @@ def upload_file(path):
     )
 
 
-def create_assistant(file):
-    """
-    You currently cannot set the temperature for Assistant via the API.
-    """
-    assistant = client.beta.assistants.create(
-        name="WhatsApp AirBnb Assistant",
-        instructions="You're a helpful WhatsApp assistant that can assist guests that are staying in our Paris AirBnb. Use your knowledge base to best respond to customer queries. If you don't know the answer, say simply that you cannot help with question and advice to contact the host directly. Be friendly and funny.",
-        tools=[{"type": "retrieval"}],
-        model="gpt-4-1106-preview",
-        file_ids=[file.id],
-    )
-    return assistant
+# def create_assistant(file):
+#     """
+#     You currently cannot set the temperature for Assistant via the API.
+#     """
+#     assistant = client.beta.assistants.create(
+#         name="WhatsApp AirBnb Assistant",
+#         instructions="You're a helpful WhatsApp assistant that can assist guests that are staying in our Paris AirBnb. Use your knowledge base to best respond to customer queries. If you don't know the answer, say simply that you cannot help with question and advice to contact the host directly. Be friendly and funny.",
+#         tools=[{"type": "retrieval"}],
+#         model="gpt-4-1106-preview",
+#         file_ids=[file.id],
+#     )
+#     return assistant
 
 
 # Use context manager to ensure the shelf file is closed properly
@@ -65,21 +65,25 @@ def run_assistant(thread, name):
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id,
-        # instructions=f"You are having a conversation with {name}",
     )
 
-    # Wait for completion
-    # https://platform.openai.com/docs/assistants/how-it-works/runs-and-run-steps#:~:text=under%20failed_at.-,Polling%20for%20updates,-In%20order%20to
+    # Esperar hasta que se complete
     while run.status != "completed":
-        # Be nice to the API
         time.sleep(0.5)
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
 
-    # Retrieve the Messages
+    # Obtener el mensaje generado
     messages = client.beta.threads.messages.list(thread_id=thread.id)
-    new_message = messages.data[0].content[0].text.value
-    logging.info(f"Generated message: {new_message}")
-    return new_message
+    full_response = messages.data[0].content[0].text.value
+
+    # Limitar la longitud del mensaje
+    MAX_CHARS = 500  # o menos si lo deseas
+    if len(full_response) > MAX_CHARS:
+        full_response = full_response[:MAX_CHARS].rstrip() + "..."
+
+    logging.info(f"Generated message (truncated): {full_response}")
+    return full_response
+
 
 
 def generate_response(message_body, wa_id, name):
